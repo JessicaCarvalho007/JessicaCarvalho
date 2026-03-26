@@ -1,0 +1,40 @@
+name: my_env
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - numpy
+  - gdal
+  - rtree
+  - shapely
+  - pyproj
+  - pyshp
+  - rasterstats
+  - fiona
+  - rasterio
+  - xlrd
+  - openpyxl
+  - requests
+  - xarray
+  - matplotlib
+  - pip
+  - scipy
+  - tqdm
+  - pyyaml
+  - pandas
+  - ipykernel
+  - ipython
+  - pooch
+  - pip:
+      - pytest
+      - jupyterlab
+      - notebook
+      - jupyter
+      - flopy
+      - netCDF4
+      - geopandas
+      - wqchartpy
+      - cartopy
+      - pyemu
+      - dash
