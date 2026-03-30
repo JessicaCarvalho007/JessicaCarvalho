@@ -1,172 +1,274 @@
-# https://www.ultraboardgames.com/yahtzee/game-rules.php
 
 from random import randint
+from collections import Counter
+
+EMPTY = None
+
+CATEGORY_MENU = {
+    1: "ones",
+    2: "twos",
+    3: "threes",
+    4: "fours",
+    5: "fives",
+    6: "sixes",
+    7: "three_kind",
+    8: "four_kind",
+    9: "full_house",
+    10: "s_straight",
+    11: "l_straight",
+    12: "chance",
+    13: "yahtzee",
+    14: "show_scorecard",
+}
+
+LABELS = {
+    "ones": "Ones",
+    "twos": "Twos",
+    "threes": "Threes",
+    "fours": "Fours",
+    "fives": "Fives",
+    "sixes": "Sixes",
+    "three_kind": "Three of a Kind",
+    "four_kind": "Four of a Kind",
+    "full_house": "Full House",
+    "s_straight": "Small Straight",
+    "l_straight": "Large Straight",
+    "chance": "Chance",
+    "yahtzee": "Yahtzee",
+    "top_bonus": "Upper Bonus",
+}
 
 
-class Player(object):
-    def __init__(self, name, scorecard):
+class Player:
+    def __init__(self, name):
         self.name = name
-        self.scorecard = scorecard.copy()
-        self.yahtzee = False
+        self.scorecard = make_scorecard()
+
+    def upper_total(self):
+        return sum(
+            self.scorecard[key] or 0
+            for key in ["ones", "twos", "threes", "fours", "fives", "sixes"]
+        )
+
+    def total_score(self):
+        bonus = 35 if self.upper_total() >= 63 else 0
+        self.scorecard["top_bonus"] = bonus
+        return sum(value or 0 for value in self.scorecard.values())
+
+
+def make_scorecard():
+    return {
+        "ones": EMPTY,
+        "twos": EMPTY,
+        "threes": EMPTY,
+        "fours": EMPTY,
+        "fives": EMPTY,
+        "sixes": EMPTY,
+        "three_kind": EMPTY,
+        "four_kind": EMPTY,
+        "full_house": EMPTY,
+        "s_straight": EMPTY,
+        "l_straight": EMPTY,
+        "chance": EMPTY,
+        "yahtzee": EMPTY,
+        "top_bonus": 0,
+    }
+
+
+def get_int_input(prompt, min_value=None, max_value=None):
+    while True:
+        raw = input(prompt).strip()
+        try:
+            value = int(raw)
+        except ValueError:
+            print("Please enter a valid number.")
+            continue
+
+        if min_value is not None and value < min_value:
+            print(f"Please enter a number from {min_value} to {max_value}.")
+            continue
+        if max_value is not None and value > max_value:
+            print(f"Please enter a number from {min_value} to {max_value}.")
+            continue
+        return value
 
 
 def get_players():
-    # This function sets the player for the game with help from the Player Class
-    player_count = 0
-    scorecard = {'ones': 'NaN', 'twos': 'NaN', 'threes': 'NaN', 'fours': 'NaN', 'fives': 'NaN', 'sixes': 'NaN',
-                 'three_kind': 'NaN', 'four_kind': 'NaN', 'full_house': 'NaN', 's_straight': 'NaN',
-                 'l_straight': 'NaN', 'chance': 'NaN', 'yahtzee': 'NaN', 'top': 0}
-    try:
-        player_count = int(input('How many players for this game? '))
-        while player_count < 1 or player_count > 6:
-            player_count = int(input('How many players for this game? '))
-    except ValueError:
-        get_players()
-    finally:
-        for player_num in range(1, player_count + 1):
-            name = input(f'What is player {player_num}\'s name? ')
-            user = Player(name, scorecard)
-            players.append(user)
+    player_count = get_int_input("How many players for this game? ", 1, 6)
+    players = []
+
+    for player_num in range(1, player_count + 1):
+        while True:
+            name = input(f"What is player {player_num}'s name? ").strip()
+            if name:
+                players.append(Player(name))
+                break
+            print("Please enter a name.")
+
+    return players
+
+
+def display_dice(dice):
+    print("Dice:", " ".join(str(d) for d in dice))
+
+
+def choose_keepers(player, current_dice):
+    prompt = (
+        f"Player {player.name}, which dice will you keep for the next roll?\n"
+        "Press ENTER to keep none, or type the die values to keep.\n"
+        "Example: 155 keeps one 1 and two 5s if available.\n> "
+    )
+
+    while True:
+        pick = input(prompt).strip()
+
+        if pick == "":
+            return []
+
+        if not pick.isdigit():
+            print("Please enter only digits that match dice values.")
+            continue
+
+        picked = [int(ch) for ch in pick]
+        if any(die < 1 or die > 6 for die in picked):
+            print("Dice values must be between 1 and 6.")
+            continue
+
+        picked_counts = Counter(picked)
+        current_counts = Counter(current_dice)
+
+        if all(picked_counts[val] <= current_counts[val] for val in picked_counts):
+            return sorted(picked)
+
+        print("You tried to keep dice that are not available. Try again.")
 
 
 def roll(player):
-    # This function controls the rolls per turn
-    rolls = 0
-    num_dice = 5
-    keep = list()
-    while rolls < 3:
-        rolls += 1
-        dice = sorted([randint(1, 6) for _ in range(num_dice - len(keep))])
-        print(f'Player: {player.name}, Rolled {dice}'
-              f' on roll #{rolls if rolls == 1 else str(rolls) + ", Holding " + str(keep)}')
-        if rolls == 3:
-            for die in dice:
-                keep.append(die)
-            keep = sorted(keep)
+    keep = []
+    final_dice = []
+
+    for roll_number in range(1, 4):
+        rolled = [randint(1, 6) for _ in range(5 - len(keep))]
+        final_dice = sorted(keep + rolled)
+
+        print(f"\n{player.name}'s roll #{roll_number}")
+        display_dice(final_dice)
+
+        if roll_number < 3:
+            keep = choose_keepers(player, final_dice)
+
+    write_score(player, final_dice)
+
+
+def score_category(category, dice, current_score):
+    counts = Counter(dice)
+    total = sum(dice)
+    unique = set(dice)
+
+    if category == "ones":
+        return counts[1] * 1
+    if category == "twos":
+        return counts[2] * 2
+    if category == "threes":
+        return counts[3] * 3
+    if category == "fours":
+        return counts[4] * 4
+    if category == "fives":
+        return counts[5] * 5
+    if category == "sixes":
+        return counts[6] * 6
+    if category == "three_kind":
+        return total if any(count >= 3 for count in counts.values()) else 0
+    if category == "four_kind":
+        return total if any(count >= 4 for count in counts.values()) else 0
+    if category == "full_house":
+        return 25 if sorted(counts.values()) == [2, 3] else 0
+    if category == "s_straight":
+        straights = [{1, 2, 3, 4}, {2, 3, 4, 5}, {3, 4, 5, 6}]
+        return 30 if any(straight.issubset(unique) for straight in straights) else 0
+    if category == "l_straight":
+        return 40 if unique in ({1, 2, 3, 4, 5}, {2, 3, 4, 5, 6}) else 0
+    if category == "chance":
+        return total
+    if category == "yahtzee":
+        if len(unique) == 1:
+            if current_score is EMPTY:
+                return 50
+            if current_score > 0:
+                return current_score + 100
+        return 0 if current_score is EMPTY else current_score
+
+    raise ValueError("Unknown category.")
+
+
+def show_scorecard(player):
+    print(f"\n{'-' * 45}")
+    print(f"{player.name}'s scorecard")
+    print("-" * 45)
+    for key, value in player.scorecard.items():
+        label = LABELS.get(key, key)
+        shown = "OPEN" if value is EMPTY else value
+        print(f"{label:<18} : {shown}")
+    print(f"Upper subtotal      : {player.upper_total()}")
+    print(f"Potential bonus     : {35 if player.upper_total() >= 63 else 0}")
+    print(f"{'-' * 45}\n")
+
+
+def write_score(player, dice):
+    while True:
+        print("\nOpen slots are:")
+        for num, key in CATEGORY_MENU.items():
+            if key == "show_scorecard":
+                print(f"{num}: Show scorecard")
+            elif player.scorecard[key] is EMPTY:
+                print(f"{num}: {LABELS[key]}")
+
+        choice = get_int_input(
+            f"\nWhere would you like to write your score?\nYour dice: {dice}\n> ",
+            1,
+            14,
+        )
+
+        if choice == 14:
+            show_scorecard(player)
+            continue
+
+        category = CATEGORY_MENU[choice]
+        if player.scorecard[category] is not EMPTY and category != "yahtzee":
+            print("That slot is already filled. Choose another one.")
+            continue
+
+        if category == "yahtzee":
+            player.scorecard["yahtzee"] = score_category(
+                "yahtzee", dice, player.scorecard["yahtzee"]
+            )
         else:
-            keep = sorted(keep)
-            rolls, dice, keep = check_picked(player, rolls, dice, keep)
-    write_score(player, keep)
+            player.scorecard[category] = score_category(
+                category, dice, player.scorecard[category]
+            )
+        break
 
 
-def check_picked(player, rolls, dice, keep):
-    # This function validates the players choice before moving to the next roll
-    check = False
-    keep_msg = 'Which dice will you keep? Press ENTER for none, 0 to clear keepers or select each die value to keep\n'
-    pick = ''
-    while len(pick) > 5 or not pick.isdigit() or not check:
-        pick = input(keep_msg)
-        if pick == '':
-            break
-        else:
-            if pick == '0':
-                dice = sorted(keep + dice)
-                keep = []
-                print(f'Player: {player.name} Dice: {dice} Roll #{rolls}')
-            try:
-                picked = list(map(int, pick))
-            except ValueError:
-                check_picked(player, rolls, dice, keep)
-            else:
-                for d in picked:
-                    if d not in dice or picked.count(d) > dice.count(d):
-                        break
-                    else:
-                        keep.append(d)
-                        check = True
-    if len(keep) == 5:
-        rolls = 3
-
-    return rolls, sorted(dice), sorted(keep)
+def print_final_scores(players):
+    print("\nThank you for playing! Final scores:\n")
+    for player in players:
+        show_scorecard(player)
+        print(f"{player.name}'s final score: {player.total_score()}")
+        print("-" * 45)
 
 
-def write_score(player, keep):
-    # This function writes the score to the players card after each turn
-    msg = f"""{"-" * 50}\n1: Ones\n2: Twos\n3: Threes\n4: Fours\n5: Fives\n6: Sixes
-7: Three of a Kind\n8: Four of a Kind\n9: Full House\n10: Small Straight\n11: Large Straight
-12: Chance\n13: Yahtzee\n14: Show your Scorecard"""
-    write_msg = f'Where would you like to write your score?\nYour dice: {keep}\n\n{msg}\n{"_" * 50}\n'
-    print(f'\nOpen slots are:')
-    for slot in player.scorecard:
-        if player.scorecard[slot] == 'NaN':
-            print(slot, end=', ')
-    print('\n')
-    try:
-        where = int(input(write_msg))
-        while where < 0 or where > 14:
-            where = int(input(write_msg))
-    except ValueError:
-        print('Please select a number 0-14')
-        write_score(player, keep)
-    else:  # The heart of the game
-        if where == 1 and player.scorecard['ones'] == 'NaN': player.scorecard['ones'] = keep.count(1)
-        elif where == 2 and player.scorecard['twos'] == 'NaN': player.scorecard['twos'] = keep.count(2) * 2
-        elif where == 3 and player.scorecard['threes'] == 'NaN': player.scorecard['threes'] = keep.count(3) * 3
-        elif where == 4 and player.scorecard['fours'] == 'NaN': player.scorecard['fours'] = keep.count(4) * 4
-        elif where == 5 and player.scorecard['fives'] == 'NaN': player.scorecard['fives'] = keep.count(5) * 5
-        elif where == 6 and player.scorecard['sixes'] == 'NaN': player.scorecard['sixes'] = keep.count(6) * 6
-        elif where == 7 and player.scorecard['three_kind'] == 'NaN':
-            check = any([True if keep.count(die) == 3 else False for die in set(keep)])
-            if check: player.scorecard['three_kind'] = sum(keep)
-            else: player.scorecard['three_kind'] = 0
-        elif where == 8 and player.scorecard['four_kind'] == 'NaN':
-            check = any([True if keep.count(die) == 4 else False for die in set(keep)])
-            if check: player.scorecard['four_kind'] = sum(keep)
-            else: player.scorecard['four_kind'] = 0
-        elif where == 9 and player.scorecard['full_house'] == 'NaN':
-            check = all([True if keep.count(die) >= 2 else False for die in set(keep)])
-            if check: player.scorecard['full_house'] = 25
-            else: player.scorecard['full_house'] = 0
-        elif where == 10 and player.scorecard['s_straight'] == 'NaN':
-            check = sum([1 if keep[i + 1] == keep[i] + 1 else 0 for i in range(len(keep) - 1)])
-            if check >= 3: player.scorecard['s_straight'] = 30
-            else: player.scorecard['s_straight'] = 0
-        elif where == 11 and player.scorecard['l_straight'] == 'NaN':
-            check = sum([1 if keep[i + 1] == keep[i] + 1 else 0 for i in range(len(keep) - 1)])
-            if check == 4: player.scorecard['l_straight'] = 40
-            else: player.scorecard['l_straight'] = 0
-        elif where == 12 and player.scorecard['chance'] == 'NaN': player.scorecard['chance'] = sum(keep)
-        elif where == 13:
-            if len(set(keep)) == 1:
-                if player.scorecard['yahtzee'] == 'NaN': player.scorecard['yahtzee'] = 0
-                if player.yahtzee == 0:
-                    player.scorecard['yahtzee'] += 50
-                    player.yahtzee = 1
-                elif player.yahtzee == 1: player.scorecard['yahtzee'] += 100
-            else:
-                if player.scorecard['yahtzee'] == 'NaN':
-                    player.scorecard['yahtzee'] = 0
-                    player.yahtzee = 2
-                else: write_score(player, keep)
-        elif where == 14:
-            for slot, score in p.scorecard.items():
-                if slot == 'top':
-                    continue
-                print(f'{slot}: {score}')
-            write_score(player, keep)
-        else:
-            print("Invalid Selection. Try again.\n")
-            write_score(player, keep)
-
-
-if __name__ == '__main__':
-    players = []
-    get_players()
+def main():
+    players = get_players()
     turns = 13
+
     while turns > 0:
-        for p in players:
-            print(f'\nIt\'s {p.name}\'s turn\n')
-            roll(p)
+        for player in players:
+            print(f"\nIt's {player.name}'s turn.")
+            roll(player)
         turns -= 1
-    print(f'Thank you for playing the final scores are:\n')
-    for p in players:
-        for k in p.scorecard:
-            if p.scorecard[k] == 'NaN':
-                p.scorecard[k] = 0
-        if p.scorecard['ones'] + p.scorecard['twos'] + p.scorecard['threes'] + \
-                p.scorecard['fours'] + p.scorecard['fives'] + p.scorecard['sixes'] >= 63:
-            print(f'Congratulations!!! {p.name} gets 35 BONUS Points!')
-            p.scorecard['top'] = 35
-        for key, value in p.scorecard.items():
-            print(f'{key}: {value}')
-        print(f'Player: {p.name}\'s final score {sum(p.scorecard.values())}\n{"-" * 35}\n')
+
+    print_final_scores(players)
+
+
+if __name__ == "__main__":
+    main()
