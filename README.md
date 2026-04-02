@@ -14,4 +14,5 @@ Show my understanding of basic GitHub and Python project setup, including:
 ## Important Note About Tkinter
 
 The Python scripts in this repository are from my old python practice scripts and may use Tkinter
+
 Because Tkinter opens local GUI windows, those scripts should be run from a **local IDE**, such as the **VS Code desktop app**, instead of GitHub Codespaces or other browser-based editors.
